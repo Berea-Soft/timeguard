@@ -3,6 +3,75 @@
  * Enhanced version with proper date arithmetic and calculations
  */
 
+/**
+ * Computes the real UTC offset (in minutes) an IANA timezone observes at
+ * a given wall-clock moment, using the host's own Intl/ICU tzdata — which
+ * is available on any Node.js build regardless of Temporal support. This
+ * is what lets the mock report a genuine "+01:00"-style offset (DST
+ * included) instead of hardcoding UTC, without embedding a timezone
+ * database of our own.
+ *
+ * Standard round-trip trick: treat the wall-clock fields as a naive UTC
+ * instant, render that instant in the target zone, and read back the
+ * offset Intl applied. One iteration is enough outside of the rare
+ * DST-transition instant itself, which isn't worth chasing in a test mock.
+ */
+function offsetMinutesAtInstant(epochMs: number, timeZone: string): number {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const parts = dtf
+    .formatToParts(epochMs)
+    .reduce<Record<string, string>>((acc, p) => {
+      acc[p.type] = p.value;
+      return acc;
+    }, {});
+  const renderedAsUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second),
+  );
+  // offset = local - UTC. `renderedAsUtc` is what the zone's wall clock
+  // reads at this instant, reinterpreted as if that reading were itself
+  // UTC — so subtracting the real UTC instant recovers the offset.
+  return (renderedAsUtc - epochMs) / 60000;
+}
+
+function getTimezoneOffsetMinutes(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  timeZone: string,
+): number {
+  // First approximation: treat the wall-clock fields as if they were the
+  // UTC instant, then read the offset the zone observes there. Correct
+  // everywhere except the instant of a DST transition itself, which isn't
+  // worth chasing in a test mock.
+  const naiveGuessEpoch = Date.UTC(year, month - 1, day, hour, minute, second);
+  return offsetMinutesAtInstant(naiveGuessEpoch, timeZone);
+}
+
+function formatOffsetMinutes(offsetMinutes: number): string {
+  const sign = offsetMinutes < 0 ? '-' : '+';
+  const abs = Math.abs(offsetMinutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `${sign}${hh}:${mm}`;
+}
+
 function buildMockTemporal() {
   class Duration {
     years = 0;
@@ -275,7 +344,70 @@ function buildMockTemporal() {
       return this.compare(other) === 0;
     }
 
-    since(other: PlainDateTime): Duration {
+    since(
+      other: PlainDateTime,
+      options?: { largestUnit?: string; smallestUnit?: string },
+    ): Duration {
+      const largestUnit = options?.largestUnit;
+
+      // Fixed-length units (day and finer) don't get a calendar year/month
+      // breakdown in real Temporal — once wall-clock time is fixed, a "day"
+      // is always exactly 24h. Collapse the whole gap into a single field
+      // instead of running it through the calendar algorithm below, whose
+      // years/months split would otherwise leave unrelated leftovers in
+      // whichever field the caller actually reads (e.g. diff(other, 'day')
+      // wants the *total* signed day count, not "days left over after
+      // subtracting months").
+      const MS_PER_UNIT: Record<string, number> = {
+        week: 604800000,
+        day: 86400000,
+        hour: 3600000,
+        minute: 60000,
+        second: 1000,
+        millisecond: 1,
+      };
+      if (largestUnit && largestUnit in MS_PER_UNIT) {
+        const thisMs = new Date(
+          this.year,
+          this.month - 1,
+          this.day,
+          this.hour,
+          this.minute,
+          this.second,
+          this.millisecond,
+        ).getTime();
+        const otherMs = new Date(
+          other.year,
+          other.month - 1,
+          other.day,
+          other.hour,
+          other.minute,
+          other.second,
+          other.millisecond,
+        ).getTime();
+        const total = Math.trunc((thisMs - otherMs) / MS_PER_UNIT[largestUnit]);
+        const byUnit: Record<string, number[]> = {
+          week: [0, 0, total, 0, 0, 0, 0, 0],
+          day: [0, 0, 0, total, 0, 0, 0, 0],
+          hour: [0, 0, 0, 0, total, 0, 0, 0],
+          minute: [0, 0, 0, 0, 0, total, 0, 0],
+          second: [0, 0, 0, 0, 0, 0, total, 0],
+          millisecond: [0, 0, 0, 0, 0, 0, 0, total],
+        };
+        return new Duration(
+          ...(byUnit[largestUnit] as [
+            number,
+            number,
+            number,
+            number,
+            number,
+            number,
+            number,
+            number,
+          ]),
+        );
+      }
+
       // Calculate years and months
       let years = this.year - other.year;
       let months = this.month - other.month;
@@ -287,6 +419,14 @@ function buildMockTemporal() {
       if (months < 0) {
         years--;
         months += 12;
+      }
+
+      // largestUnit: 'month' folds the calendar years into months instead
+      // of reporting them separately (largestUnit defaults to 'year',
+      // which keeps them split — the existing, still-correct behavior).
+      if (largestUnit === 'month') {
+        months += years * 12;
+        years = 0;
       }
 
       // For days/time, calculate from same month/year point
@@ -348,8 +488,11 @@ function buildMockTemporal() {
       );
     }
 
-    until(other: PlainDateTime): Duration {
-      return other.since(this);
+    until(
+      other: PlainDateTime,
+      options?: { largestUnit?: string; smallestUnit?: string },
+    ): Duration {
+      return other.since(this, options);
     }
 
     with(values: any): PlainDateTime {
@@ -433,8 +576,65 @@ function buildMockTemporal() {
       const zdt: any = Object.create(Object.getPrototypeOf(this));
       Object.assign(zdt, this);
       zdt.timeZoneId = timezone;
-      zdt.offset = '+00:00';
-      zdt.offsetNanoseconds = 0;
+      const offsetMinutes = getTimezoneOffsetMinutes(
+        this.year,
+        this.month,
+        this.day,
+        this.hour,
+        this.minute,
+        this.second,
+        timezone,
+      );
+      zdt.offset = formatOffsetMinutes(offsetMinutes);
+      zdt.offsetNanoseconds = offsetMinutes * 60 * 1e9;
+      // Real Temporal.ZonedDateTime#toPlainDateTime() strips the zone info
+      // and returns a fresh PlainDateTime — TemporalAdapter.toPlainDateTime()
+      // calls this on anything it identifies as zoned (has timeZoneId), so
+      // without it every TimeGuard.now() (which always produces a zoned
+      // value) throws "toPlainDateTime is not a function" the moment any
+      // operation touches the adapter.
+      zdt.toPlainDateTime = () =>
+        new PlainDateTime(
+          this.year,
+          this.month,
+          this.day,
+          this.hour,
+          this.minute,
+          this.second,
+          this.millisecond,
+        );
+      // The wall-clock fields are local time in `timezone`; the actual UTC
+      // instant is that wall clock minus the offset (local = UTC + offset).
+      const epochMs =
+        Date.UTC(
+          this.year,
+          this.month - 1,
+          this.day,
+          this.hour,
+          this.minute,
+          this.second,
+          this.millisecond,
+        ) -
+        offsetMinutes * 60000;
+      zdt.toInstant = () => ({
+        epochMilliseconds: epochMs,
+        epochNanoseconds: BigInt(epochMs) * 1000000n,
+        toString: () => new Date(epochMs).toISOString(),
+        toZonedDateTimeISO: (targetTz: string) => {
+          const targetOffsetMinutes = offsetMinutesAtInstant(epochMs, targetTz);
+          const localMs = epochMs + targetOffsetMinutes * 60000;
+          const d = new Date(localMs);
+          return new PlainDateTime(
+            d.getUTCFullYear(),
+            d.getUTCMonth() + 1,
+            d.getUTCDate(),
+            d.getUTCHours(),
+            d.getUTCMinutes(),
+            d.getUTCSeconds(),
+            d.getUTCMilliseconds(),
+          ).toZonedDateTime(targetTz);
+        },
+      });
       return zdt;
     }
 
@@ -525,8 +725,30 @@ function buildMockTemporal() {
     }
 
     static zonedDateTimeISO(timezone?: string): any {
-      const dt = this.plainDateTimeISO();
-      return dt.toZonedDateTime(timezone || 'UTC');
+      if (!timezone) {
+        // No explicit zone: use the system's own local reading (same as
+        // plainDateTimeISO()), matching real Temporal's default of the
+        // runtime's own IANA zone when none is given.
+        return this.plainDateTimeISO().toZonedDateTime(
+          Intl.DateTimeFormat().resolvedOptions().timeZone,
+        );
+      }
+      // Explicit zone: compute the wall clock actually observed there
+      // right now, rather than relabeling the system's own local reading
+      // — two different explicit zones must resolve to the same instant.
+      const nowMs = Date.now();
+      const offsetMinutes = offsetMinutesAtInstant(nowMs, timezone);
+      const localMs = nowMs + offsetMinutes * 60000;
+      const d = new Date(localMs);
+      return new PlainDateTime(
+        d.getUTCFullYear(),
+        d.getUTCMonth() + 1,
+        d.getUTCDate(),
+        d.getUTCHours(),
+        d.getUTCMinutes(),
+        d.getUTCSeconds(),
+        d.getUTCMilliseconds(),
+      ).toZonedDateTime(timezone);
     }
   }
 
