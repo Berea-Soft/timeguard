@@ -1,0 +1,217 @@
+{
+  "name": "@bereasoftware/timeguard",
+  "private": false,
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/timeguard.cjs",
+  "module": "./dist/timeguard.es.js",
+  "types": "./dist/types/index.d.ts",
+  "unpkg": "./dist/timeguard.umd.js",
+  "browser": {
+    "./dist/timeguard.umd.js": "./dist/timeguard.umd.js",
+    "./dist/timeguard.iife.js": "./dist/timeguard.iife.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/timeguard.es.js",
+      "require": "./dist/timeguard.cjs",
+      "default": "./dist/timeguard.es.js"
+    },
+    "./react": {
+      "types": "./dist/types/react.d.ts",
+      "import": "./dist/react/index.es.js",
+      "require": "./dist/react/index.cjs",
+      "default": "./dist/react/index.es.js"
+    },
+    "./vue": {
+      "types": "./dist/types/vue.d.ts",
+      "import": "./dist/vue/index.es.js",
+      "require": "./dist/vue/index.cjs",
+      "default": "./dist/vue/index.es.js"
+    },
+    "./angular": {
+      "types": "./dist/types/angular.d.ts",
+      "import": "./dist/angular/index.es.js",
+      "require": "./dist/angular/index.cjs",
+      "default": "./dist/angular/index.es.js"
+    },
+    "./svelte": {
+      "types": "./dist/types/svelte.d.ts",
+      "import": "./dist/svelte/index.es.js",
+      "require": "./dist/svelte/index.cjs",
+      "default": "./dist/svelte/index.es.js"
+    },
+    "./solid": {
+      "types": "./dist/types/solid.d.ts",
+      "import": "./dist/solid/index.es.js",
+      "require": "./dist/solid/index.cjs",
+      "default": "./dist/solid/index.es.js"
+    },
+    "./qwik": {
+      "types": "./dist/types/qwik.d.ts",
+      "import": "./dist/qwik/index.es.js",
+      "require": "./dist/qwik/index.cjs",
+      "default": "./dist/qwik/index.es.js"
+    },
+    "./locales": {
+      "types": "./dist/types/locales/index.d.ts",
+      "import": "./dist/locales/index.es.js",
+      "require": "./dist/locales/index.cjs",
+      "default": "./dist/locales/index.es.js"
+    },
+    "./calendars": {
+      "types": "./dist/types/calendars/index.d.ts",
+      "import": "./dist/calendars/index.es.js",
+      "require": "./dist/calendars/index.cjs",
+      "default": "./dist/calendars/index.es.js"
+    },
+    "./plugins/relative-time": {
+      "types": "./dist/types/plugins/relative-time.d.ts",
+      "import": "./dist/plugins/relative-time.es.js",
+      "require": "./dist/plugins/relative-time.cjs",
+      "default": "./dist/plugins/relative-time.es.js"
+    },
+    "./plugins/duration": {
+      "types": "./dist/types/plugins/duration.d.ts",
+      "import": "./dist/plugins/duration.es.js",
+      "require": "./dist/plugins/duration.cjs",
+      "default": "./dist/plugins/duration.es.js"
+    },
+    "./plugins/advanced-format": {
+      "types": "./dist/types/plugins/advanced-format.d.ts",
+      "import": "./dist/plugins/advanced-format.es.js",
+      "require": "./dist/plugins/advanced-format.cjs",
+      "default": "./dist/plugins/advanced-format.es.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "packageManager": "pnpm@11.9.0",
+  "keywords": [
+    "timeguard",
+    "typescript",
+    "date",
+    "time",
+    "temporal",
+    "date-time",
+    "datetime",
+    "immutable",
+    "locale",
+    "i18n",
+    "internationalization",
+    "formatter",
+    "date-formatter",
+    "temporal-api",
+    "native-temporal",
+    "zero-dependency",
+    "zero-polyfill",
+    "es2026",
+    "solid-principles",
+    "javascript"
+  ],
+  "author": "John Andrade <johnandrade@bereasoft.com>",
+  "license": "MIT",
+  "description": "A modern, fully-typed TypeScript date/time library built on the native Temporal API. Zero runtime dependencies, no polyfill — same SOLID, fully i18n'd, immutable API as @bereasoftware/timeguard, for runtimes with native Temporal support (Node.js >=26, or a browser with native Temporal).",
+  "maintainers": [
+    {
+      "name": "John Andrade",
+      "email": "johnandrade@bereasoft.com"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Berea-Soft/timeguard"
+  },
+  "bugs": {
+    "url": "https://github.com/Berea-Soft/timeguard/issues"
+  },
+  "engines": {
+    "node": ">=26",
+    "npm": ">=10"
+  },
+  "browserslist": [
+    "Chrome >= 144",
+    "Edge >= 144",
+    "Firefox >= 139"
+  ],
+  "homepage": "https://github.com/Berea-Soft/timeguard#readme",
+  "scripts": {
+    "build": "vite build && vite build --mode umd && vite build --mode angular",
+    "build:all": "pnpm build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build",
+    "prepare": "husky"
+  },
+  "peerDependencies": {
+    "@angular/core": ">=22.1.3",
+    "@builder.io/qwik": ">=1.20.0",
+    "react": ">=19.2.8",
+    "rxjs": ">=7.8.2",
+    "solid-js": ">=1.9.15",
+    "svelte": ">=5.56.10",
+    "vue": ">=3.5.41"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    },
+    "@angular/core": {
+      "optional": true
+    },
+    "rxjs": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    },
+    "@builder.io/qwik": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@angular/core": "^22.1.3",
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/git": "^11.0.1",
+    "@semantic-release/github": "^12.0.9",
+    "@semantic-release/npm": "^13.1.5",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/ui": "^4.1.11",
+    "eslint": "^10.9.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
+    "prettier": "^3.9.6",
+    "react": "^19.2.8",
+    "rxjs": "^7.8.2",
+    "semantic-release": "^25.0.9",
+    "typescript": "~6.0.3",
+    "vite": "^8.2.2",
+    "vite-plugin-dts": "^5.0.3",
+    "vitest": "^4.1.11",
+    "vue": "^3.5.41"
+  }
+}

@@ -1,0 +1,173 @@
+name: CI & Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # timeguard has zero dependency on @js-temporal/polyfill, not even as
+        # a devDependency. 22-24 run the suite against a small, dependency-
+        # free mock (test/temporal-mock.ts) that test/setup.ts loads only
+        # when no native globalThis.Temporal is found — see test-native-
+        # temporal below for proof against real, unflagged native Temporal.
+        # 26 exercises this exact same suite against genuine native Temporal
+        # (the mock's own guard makes it a no-op there).
+        node-version: [22, 23, 24, 26]
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prettier
+        run: pnpm format
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Upload coverage
+        if: matrix.node-version == 22
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-report
+          path: coverage/
+  test-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Verify browser bundle
+        run: |
+          test -f dist/timeguard.iife.js && echo "IIFE bundle exists"
+          test -f dist/timeguard.umd.js && echo "UMD bundle exists"
+          test -f dist/timeguard.es.js && echo "ES bundle exists"
+  test-native-temporal:
+    # Node.js 26 is the first release with the Temporal API enabled by
+    # default (unflagged) — this job proves @bereasoftware/timeguard
+    # genuinely works against real native Temporal. @js-temporal/polyfill
+    # isn't installed anywhere in this job (it's not a dependency of any
+    # kind — see package.json), so there's nothing to strip before this
+    # check; it's already a true zero-polyfill install by construction.
+    # Unlike time-guard's equivalent job (which only checks its /native
+    # subpath), here the whole package must clear this bar — there's no
+    # polyfilled entry to fall back to.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js 26
+        uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Verify @js-temporal/polyfill is not installed anywhere
+        run: |
+          if [ -d node_modules/@js-temporal ]; then
+            echo "::error::@js-temporal/polyfill must not be installed in timeguard (found in node_modules)"
+            exit 1
+          fi
+          echo "Confirmed: @js-temporal/polyfill is absent from node_modules"
+
+      - name: Verify native Temporal is available unflagged
+        run: node -e "console.log(Temporal.Now.plainDateTimeISO().toString())"
+
+      - name: Verify package works with zero polyfill installed
+        run: |
+          node --input-type=module -e "
+            import { TimeGuard, timeGuard } from './dist/timeguard.es.js';
+            const now = TimeGuard.now();
+            if (typeof now.year() !== 'number') throw new Error('year() did not return a number');
+            const a = timeGuard('2026-05-18T10:30:00');
+            const b = a.add({ days: 3 });
+            if (b.format('YYYY-MM-DD') !== '2026-05-21') throw new Error('add()/format() mismatch: ' + b.format('YYYY-MM-DD'));
+            console.log('timeguard OK on real native Temporal, zero polyfill installed, year=' + now.year());
+          "
+  release:
+    needs: [test, test-browser, test-native-temporal]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

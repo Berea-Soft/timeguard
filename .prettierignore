@@ -1,0 +1,7 @@
+node_modules
+dist
+*.d.ts
+*.js
+coverage
+*.snap
+docs-app/src/examples/AngularDemo.vue

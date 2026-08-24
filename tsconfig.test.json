@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node", "vitest/globals"],
+    "lib": ["ESNext", "ESNext.Temporal", "DOM", "DOM.Iterable"]
+  },
+  "include": ["test/**/*.ts", "src/**/*.ts"],
+  "exclude": ["dist/**/*", "node_modules/**/*"]
+}
