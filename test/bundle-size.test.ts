@@ -26,7 +26,11 @@ describe('Bundle Size Report', () => {
       .filter((f) => !f.startsWith('types'));
 
     // ── No shared chunks or stale artifacts ──
-    // Allow: locales-xxxx.js (shared i18n chunks) and core-xxxx.js (Vite shared chunks)
+    // Allow: locales-xxxx.js, locale.manager-xxxx.js (shared i18n chunks)
+    // and core-xxxx.js (Vite shared chunks). Now that core.ts no longer
+    // re-exports the full locales/calendars/plugins barrels (see core.ts),
+    // Rolldown splits locale.manager.ts into its own shared chunk since
+    // it's imported both by core.ts and by the /locales subpath.
     const unwanted = allDistFiles.filter(
       (f) =>
         f.includes('locales.esm') ||
@@ -39,6 +43,9 @@ describe('Bundle Size Report', () => {
           !f.includes('.iife.') &&
           !f.includes('/') &&
           !/locales-[A-Za-z0-9_-]+\.(js|cjs)$/.test(f) &&
+          !/^locale\.manager-[A-Za-z0-9_-]+\.(js|cjs)$/.test(
+            f.split('/').pop() || '',
+          ) &&
           !/^core-[A-Za-z0-9_-]+\.js$/.test(f.split('/').pop() || '')),
     );
     expect(
@@ -115,14 +122,28 @@ describe('Bundle Size Report', () => {
     ).toContain('Temporal API not found on globalThis');
 
     // ── Size sanity check (zero-polyfill: should stay lightweight) ──
-    // This measures timeguard.es.js itself, not its full transitive weight
-    // (it also imports a shared core-*.js chunk plus the calendars/plugins
-    // subpath files, all counted separately below and in their own dist
-    // budgets) — the point of this assertion is catching a regression like
-    // "the polyfill got bundled in" (which would jump this well past 30KB),
-    // not modeling exact bytes-over-the-wire for a real consumer bundler.
-    const mainGzip = gzipSync(readFileSync(join(distDir, 'timeguard.es.js')));
-    expect(mainGzip.length).toBeLessThan(30 * 1024);
+    // core.ts no longer re-exports the full locales/calendars/plugins
+    // barrels (see core.ts), so `import { TimeGuard } from 'timeguard'`
+    // now only pulls in this stub plus whichever shared chunks it actually
+    // imports (currently just core-*.js + locale.manager-*.js — no
+    // locales/calendars/plugins). Sum those instead of just the stub file,
+    // so this assertion reflects the real minimum weight of using
+    // TimeGuard at all, not just the glue code around it.
+    const mainFile = readFileSync(join(distDir, 'timeguard.es.js'), 'utf-8');
+    const importedChunks = [...mainFile.matchAll(/from ["']\.\/([^"']+)["']/g)]
+      .map((m) => m[1])
+      .filter((f) => f.endsWith('.js'));
+    const totalGzip =
+      gzipSync(Buffer.from(mainFile)).length +
+      importedChunks.reduce(
+        (sum, f) => sum + gzipSync(readFileSync(join(distDir, f))).length,
+        0,
+      );
+    // Measured at ~11KB (stub + core + locale.manager, EN/ES included).
+    // 15KB leaves headroom without masking a real regression — e.g. a
+    // locales/calendars/plugins re-export leaking back into core.ts would
+    // jump this well past 20KB.
+    expect(totalGzip).toBeLessThan(15 * 1024);
   }, 180000);
 
   it('should build Angular separately with esbuild', () => {

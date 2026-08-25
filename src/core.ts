@@ -1816,17 +1816,17 @@ export type {
 // Adapter exports
 export { TemporalAdapter } from './adapters/temporal.adapter';
 
-// Locale exports (core only: manager + EN/ES built-in)
+// Locale exports — core only: manager + EN/ES built-in. The other 38+
+// locales, every non-Gregorian calendar, and all 3 plugins are full
+// implementations that used to be re-exported here *in addition* to their
+// own dedicated subpath entries (`/locales`, `/calendars`,
+// `/plugins/*`) — meaning every one of them got bundled into this shared
+// core chunk whether or not a consumer imported anything but `TimeGuard`.
+// They're intentionally not re-exported from here anymore: get them from
+// their subpath instead (see README → Bundle Modular). Nothing at runtime
+// is lost — LocaleManager/CalendarManager/PluginManager work standalone
+// with just EN/ES + Gregorian + no plugins, exactly as before.
 export { LocaleManager, EN_LOCALE, ES_LOCALE };
-
-// Locale exports (all locales)
-export {
-  getAvailableLocales,
-  LOCALES_COUNT,
-  ALL_LOCALES,
-  registerAllLocales,
-  loadAllLocales,
-} from './locales/index';
 
 // Formatter exports
 export { DateFormatter } from './formatters/date.formatter';
@@ -1838,46 +1838,8 @@ export {
   calendarManager,
 } from './calendars/calendar.manager';
 
-// Calendar exports (all calendar systems)
-export {
-  IslamicCalendar,
-  HebrewCalendar,
-  ChineseCalendar,
-  JapaneseCalendar,
-  BuddhistCalendar,
-} from './calendars/index';
-
 // Plugin Manager (core infra, no built-in plugins)
-export * from './plugins/index';
 export { PluginManager } from './plugins/manager';
-
-// Plugin exports (all plugins)
-export {
-  RelativeTimePlugin,
-  default as relativeTimePlugin,
-} from './plugins/relative-time';
-export type {
-  RelativeTimeConfig,
-  RelativeTimeFormats,
-  RelativeTimeThreshold,
-} from './plugins/relative-time/types';
-
-export {
-  DurationPlugin,
-  Duration,
-  default as durationPlugin,
-} from './plugins/duration';
-export type {
-  IDuration,
-  DurationInput,
-  DurationObject,
-  DurationUnit,
-} from './plugins/duration/types';
-
-export {
-  AdvancedFormatPlugin,
-  default as advancedFormatPlugin,
-} from './plugins/advanced-format';
 
 // Factory function (fluent API)
 export function timeGuard(input?: unknown, config?: ITimeGuardConfig) {

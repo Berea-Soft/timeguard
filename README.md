@@ -9,8 +9,8 @@
 <br/>
 
 > ℹ️ **¿timeguard o time-guard?** Son dos paquetes hermanos con **idéntica funcionalidad** (comparten la misma implementación central):
-> - [`@bereasoftware/time-guard`](https://github.com/Berea-Soft/time-guard) — carga automáticamente el polyfill de Temporal. Funciona en cualquier runtime moderno (Node 18+, cualquier navegador), a cambio de ~52KB gzip en el entry por defecto (~75KB con todo lo demás cargado).
-> - `@bereasoftware/timeguard` (este paquete) — **cero dependencias en runtime**, asume que `Temporal` ya existe de forma nativa (Node.js ≥26, o un navegador reciente). ~10KB gzip (core + EN/ES), ~24KB si tu bundler no hace tree-shaking del resto.
+> - [`@bereasoftware/time-guard`](https://github.com/Berea-Soft/time-guard) — carga automáticamente el polyfill de Temporal. Funciona en cualquier runtime moderno (Node 18+, cualquier navegador), a cambio de ~52KB gzip en el entry por defecto (~54KB como `<script>` para CDN).
+> - `@bereasoftware/timeguard` (este paquete) — **cero dependencias en runtime**, asume que `Temporal` ya existe de forma nativa (Node.js ≥26, o un navegador reciente). **~11KB gzip** (core + EN/ES) importado como módulo, o **~9KB** como `<script>` autocontenido para CDN.
 >
 > Si no estás seguro de qué runtime tienen tus usuarios, usa `time-guard`. Si controlas el entorno de ejecución (backend propio, runtime moderno garantizado), `timeguard` te da el mismo poder con menos peso.
 
@@ -163,20 +163,20 @@ import { TimeGuard } from '@bereasoftware/timeguard';
 
 ### Bundle Modular
 
-timeguard usa la misma arquitectura modular que `time-guard`. El entry por defecto es un stub de ~1.8KB gzip que importa un chunk compartido de ~8.5KB gzip (TimeGuard, formatter, EN/ES, Gregoriano) — como este paquete nunca incluye un polyfill, usar solo `TimeGuard` con EN/ES se queda en **~10KB gzip** en total. Locales adicionales, plugins y calendarios viven en sus propios chunks (~1-8KB gzip cada uno) que un bundler con tree-shaking puede omitir si no los usás; sin tree-shaking, todo junto (los 40+ locales incluidos) pesa **~24KB gzip**:
+timeguard usa la misma arquitectura modular que `time-guard`. El entry por defecto es un stub de ~1.6KB gzip que importa dos chunks compartidos (TimeGuard/formatter/Gregoriano ~8.5KB + LocaleManager/EN/ES ~1KB) — como este paquete nunca incluye un polyfill, usar solo `TimeGuard` se queda en **~11KB gzip** en total. Antes, `core.ts` también reexportaba de regalo la implementación completa de los 40+ locales, los 5 calendarios no-gregorianos y los 3 plugins — inflando este mismo entry a ~24KB aunque nunca los usaras. Ahora esos viven **solo** en sus propios subpaths, así que el entry por defecto ya no paga por ellos. El efecto es más notorio en el build autocontenido para `<script>`/CDN (que no puede resolver subpaths en tiempo de ejecución): bajó de ~19KB a **~9KB gzip**. Locales adicionales, plugins y calendarios siguen disponibles bajo demanda:
 
 ```typescript
-// Entry por defecto (~10KB gzip con EN/ES; cero dependencias en runtime)
+// Entry por defecto (~11KB gzip; cero dependencias en runtime)
 import { TimeGuard } from '@bereasoftware/timeguard';
 
-// Módulos bajo demanda
+// Módulos bajo demanda (no vienen incluidos en el entry por defecto)
 import { ALL_LOCALES } from '@bereasoftware/timeguard/locales';
 import { IslamicCalendar } from '@bereasoftware/timeguard/calendars';
 import relativeTimePlugin from '@bereasoftware/timeguard/plugins/relative-time';
 import { Duration } from '@bereasoftware/timeguard/plugins/duration';
 import advancedFormatPlugin from '@bereasoftware/timeguard/plugins/advanced-format';
 
-// UMD para CDN / <script>
+// UMD para CDN / <script> (~9KB gzip, autocontenido)
 // <script src="unpkg.com/@bereasoftware/timeguard/dist/timeguard.umd.js"></script>
 
 // Nota: los archivos UMD/IIFE son solo para CDN o <script>, no para importarlos como subpaths del paquete.

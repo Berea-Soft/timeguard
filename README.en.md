@@ -3,8 +3,8 @@
 The **100% native** edition of TimeGuard: a modern, production-grade date/time manipulation library built with **TypeScript**, the **native Temporal API**, and **SOLID principles**. Zero runtime dependencies, no polyfill — same API and functionality as [**@bereasoftware/time-guard**](https://github.com/Berea-Soft/time-guard), for environments that already expose `Temporal` natively.
 
 > ℹ️ **timeguard or time-guard?** These are two sibling packages with **identical functionality** (they share the same core implementation):
-> - [`@bereasoftware/time-guard`](https://github.com/Berea-Soft/time-guard) — auto-loads the Temporal polyfill. Works on any modern runtime (Node 18+, any browser), at the cost of ~52KB gzip for the default entry (~75KB with everything else loaded).
-> - `@bereasoftware/timeguard` (this package) — **zero runtime dependencies**, assumes `Temporal` already exists natively (Node.js ≥26, or a recent browser). ~10KB gzip (core + EN/ES), ~24KB if your bundler doesn't tree-shake the rest.
+> - [`@bereasoftware/time-guard`](https://github.com/Berea-Soft/time-guard) — auto-loads the Temporal polyfill. Works on any modern runtime (Node 18+, any browser), at the cost of ~52KB gzip for the default entry (~54KB as a CDN `<script>`).
+> - `@bereasoftware/timeguard` (this package) — **zero runtime dependencies**, assumes `Temporal` already exists natively (Node.js ≥26, or a recent browser). **~11KB gzip** imported as a module, or **~9KB** as a self-contained CDN `<script>`.
 >
 > If you're not sure what runtime your users have, use `time-guard`. If you control the execution environment (your own backend, a guaranteed modern runtime), `timeguard` gives you the same power with less weight.
 
@@ -147,20 +147,20 @@ import { TimeGuard } from '@bereasoftware/timeguard';
 
 ### Modular Bundle
 
-timeguard uses the same modular architecture as `time-guard`. The default entry is a ~1.8KB gzip stub that imports a shared ~8.5KB gzip chunk (TimeGuard, formatter, EN/ES, Gregorian) — since this package never bundles a polyfill, using just `TimeGuard` with EN/ES stays at **~10KB gzip** total. Extra locales, plugins, and calendars live in their own chunks (~1-8KB gzip each) that a tree-shaking bundler can drop if unused; without tree-shaking, everything together (all 40+ locales included) weighs **~24KB gzip**:
+timeguard uses the same modular architecture as `time-guard`. The default entry is a ~1.6KB gzip stub that imports two shared chunks (TimeGuard/formatter/Gregorian ~8.5KB + LocaleManager/EN/ES ~1KB) — since this package never bundles a polyfill, using just `TimeGuard` stays at **~11KB gzip** total. It used to also give away the full implementation of all 40+ locales, all 5 non-Gregorian calendars, and all 3 plugins for free from `core.ts`, inflating this same entry to ~24KB whether or not you used any of them. They now live **only** in their own subpaths, so the default entry no longer pays for them. The effect is most visible in the self-contained `<script>`/CDN build (which can't resolve subpaths at runtime): it dropped from ~19KB to **~9KB gzip**. Extra locales, plugins, and calendars remain available on demand:
 
 ```typescript
-// Default entry (~10KB gzip with EN/ES; zero runtime dependencies)
+// Default entry (~11KB gzip; zero runtime dependencies)
 import { TimeGuard } from "@bereasoftware/timeguard";
 
-// On-demand modules
+// On-demand modules (not included in the default entry)
 import { ALL_LOCALES } from "@bereasoftware/timeguard/locales";
 import { IslamicCalendar } from "@bereasoftware/timeguard/calendars";
 import relativeTimePlugin from "@bereasoftware/timeguard/plugins/relative-time";
 import { Duration } from "@bereasoftware/timeguard/plugins/duration";
 import advancedFormatPlugin from "@bereasoftware/timeguard/plugins/advanced-format";
 
-// UMD for CDN / <script>
+// UMD for CDN / <script> (~9KB gzip, self-contained)
 // <script src="unpkg.com/@bereasoftware/timeguard/dist/timeguard.umd.js"></script>
 
 // Note: UMD/IIFE files are only for CDN or <script> usage, not for package subpath imports.

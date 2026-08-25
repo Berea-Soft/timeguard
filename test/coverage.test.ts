@@ -11,14 +11,6 @@ import {
   DateFormatter,
   PluginManager,
   timeGuard,
-  IslamicCalendar,
-  HebrewCalendar,
-  ChineseCalendar,
-  JapaneseCalendar,
-  BuddhistCalendar,
-  Duration,
-  advancedFormatPlugin,
-  durationPlugin,
   LocaleManager,
 } from '../src/index';
 import {
@@ -29,9 +21,18 @@ import {
   formatZeroDuration,
 } from '../src/utils/duration-locale';
 import { registerAllLocales } from '../src/locales/index';
+import {
+  IslamicCalendar,
+  HebrewCalendar,
+  ChineseCalendar,
+  JapaneseCalendar,
+  BuddhistCalendar,
+} from '../src/calendars/index';
 import relativeTimePlugin, {
   RelativeTimePlugin,
 } from '../src/plugins/relative-time';
+import { Duration, default as durationPlugin } from '../src/plugins/duration';
+import advancedFormatPlugin from '../src/plugins/advanced-format';
 
 describe('Coverage Tests - Calendar Manager', () => {
   beforeEach(() => {

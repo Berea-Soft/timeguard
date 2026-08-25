@@ -363,6 +363,8 @@ test/
 
 `core.ts` is the only module that implements TimeGuard's logic, and it is **the exact same code** (byte-for-byte) used by the sibling package [`@bereasoftware/time-guard`](https://github.com/Berea-Soft/time-guard) — there, `index.ts` auto-loads the polyfill before re-exporting `core.ts`; here, `index.ts` simply re-exports `core.ts`, assuming `Temporal` already exists. This guarantees, by construction, that both packages have **identical API surface and functionality**; the only difference is the runtime contract (auto-polyfilled vs. native). See [Requirements](README.en.md#requirements) for the Node.js/browser versions needed.
 
+`core.ts` exports **only** the essentials: `TimeGuard`, `LocaleManager`+`EN_LOCALE`/`ES_LOCALE`, `DateFormatter`, `CalendarManager`+`GregorianCalendar`, and `PluginManager` (with no plugins registered). The 40+ extra locales, the 5 non-Gregorian calendars, and the 3 plugins exist **only** in their own subpaths (`/locales`, `/calendars`, `/plugins/*`) — they used to also be re-exported from `core.ts` for free, so any entry that used the core (the full package, `/native`, `/react`, `/vue`, etc.) loaded that entire implementation whether or not it was ever used. Dropping those re-exports removes no functionality — it only changes where it's imported from — and shrank the self-contained build (UMD/IIFE, used for `<script>`/CDN) from ~19-24KB down to **~9-11KB gzip** in `timeguard` (equivalently in `time-guard`, polyfill weight aside).
+
 ### Modular Build System
 
 The build runs in 2 steps:
