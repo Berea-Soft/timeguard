@@ -15,7 +15,7 @@ Una librería moderna y completamente tipada en TypeScript para manejo de fecha/
 - 🌍 **Soporte i18n** - Gestión de locales integrada (EN, ES, y extensible)
 - 🔄 **Inmutable** - Todas las operaciones devuelven nuevas instancias
 - 🪝 **Sistema de Plugins** - Extiende funcionalidad con plugins personalizados
-- 📦 **Bundle Modular** - Core ligero (~5KB gzip), carga locales/plugins/calendarios bajo demanda
+- 📦 **Bundle Modular** - Core ligero (~8.5KB gzip), carga locales/plugins/calendarios bajo demanda
 - 🔋 **Cero Dependencias** - Ningún polyfill embebido; usa el `Temporal` nativo del runtime (Node.js ≥26 o navegador moderno)
 
 ## 📦 Instalación
@@ -326,7 +326,7 @@ tg.timezone("America/New_York"); // Nueva instancia con diferente zona horaria
 ```
 src/
 ├── core.ts                     # Implementación (TimeGuard, DurationResult, TimeRange) — sin efectos secundarios
-├── index.ts                    # Único entry point (~5KB gzip): re-exporta core, asume `globalThis.Temporal` nativo
+├── index.ts                    # Único entry point (~10KB gzip con core+EN/ES): re-exporta core, asume `globalThis.Temporal` nativo
 ├── react.ts / vue.ts / angular.ts / svelte.ts / solid.ts / qwik.ts  # Integraciones por framework
 ├── adapters/
 │   └── temporal.adapter.ts     # Adaptador del API Temporal (nunca importa un polyfill)
@@ -501,7 +501,7 @@ const temporal = tg.toTemporal();
 
 ## 🚀 Rendimiento
 
-- **Core ~5KB gzip** — solo lo esencial (TimeGuard, formatter, EN/ES, Gregoriano)
+- **Core ~8.5KB gzip** — solo lo esencial (TimeGuard, formatter, EN/ES, Gregoriano)
 - Sobrecarga mínima a través del patrón adaptador
 - Evaluación perezosa donde es posible
 - Caché eficiente de locales
@@ -533,7 +533,7 @@ Licencia MIT - Ver archivo LICENSE para detalles
 - [x] Sistema de plugins (relative-time, duration, advanced-format)
 - [x] 6 sistemas de calendario (Gregoriano, Islámico, Hebreo, Chino, Japonés, Budista)
 - [x] Build UMD/IIFE para CDN y `<script>`
-- [x] Arquitectura modular (core ~5KB gzip + carga bajo demanda)
+- [x] Arquitectura modular (core ~8.5KB gzip + carga bajo demanda)
 - [ ] Soporte avanzado de zona horaria (conversiones DST)
 - [ ] Optimizaciones de rendimiento
 - [ ] Patrones de recurrencia de fechas

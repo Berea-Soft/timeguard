@@ -9,8 +9,8 @@
 <br/>
 
 > ℹ️ **¿timeguard o time-guard?** Son dos paquetes hermanos con **idéntica funcionalidad** (comparten la misma implementación central):
-> - [`@bereasoftware/time-guard`](https://github.com/Berea-Soft/time-guard) — carga automáticamente el polyfill de Temporal. Funciona en cualquier runtime moderno (Node 18+, cualquier navegador), a cambio de ~35KB gzip extra.
-> - `@bereasoftware/timeguard` (este paquete) — **cero dependencias en runtime**, asume que `Temporal` ya existe de forma nativa (Node.js ≥26, o un navegador reciente). ~5KB gzip.
+> - [`@bereasoftware/time-guard`](https://github.com/Berea-Soft/time-guard) — carga automáticamente el polyfill de Temporal. Funciona en cualquier runtime moderno (Node 18+, cualquier navegador), a cambio de ~52KB gzip en el entry por defecto (~75KB con todo lo demás cargado).
+> - `@bereasoftware/timeguard` (este paquete) — **cero dependencias en runtime**, asume que `Temporal` ya existe de forma nativa (Node.js ≥26, o un navegador reciente). ~10KB gzip (core + EN/ES), ~24KB si tu bundler no hace tree-shaking del resto.
 >
 > Si no estás seguro de qué runtime tienen tus usuarios, usa `time-guard`. Si controlas el entorno de ejecución (backend propio, runtime moderno garantizado), `timeguard` te da el mismo poder con menos peso.
 
@@ -163,10 +163,10 @@ import { TimeGuard } from '@bereasoftware/timeguard';
 
 ### Bundle Modular
 
-timeguard usa la misma arquitectura modular que `time-guard`. El **core** (TimeGuard, formatter, EN/ES, Gregoriano) pesa ~5KB gzip — y como este paquete nunca incluye un polyfill, el bundle completo del entry por defecto se queda en esos ~5KB. Locales, plugins y calendarios se cargan bajo demanda:
+timeguard usa la misma arquitectura modular que `time-guard`. El entry por defecto es un stub de ~1.8KB gzip que importa un chunk compartido de ~8.5KB gzip (TimeGuard, formatter, EN/ES, Gregoriano) — como este paquete nunca incluye un polyfill, usar solo `TimeGuard` con EN/ES se queda en **~10KB gzip** en total. Locales adicionales, plugins y calendarios viven en sus propios chunks (~1-8KB gzip cada uno) que un bundler con tree-shaking puede omitir si no los usás; sin tree-shaking, todo junto (los 40+ locales incluidos) pesa **~24KB gzip**:
 
 ```typescript
-// Entry por defecto (~5KB gzip): core, cero dependencias en runtime
+// Entry por defecto (~10KB gzip con EN/ES; cero dependencias en runtime)
 import { TimeGuard } from '@bereasoftware/timeguard';
 
 // Módulos bajo demanda
@@ -1982,7 +1982,7 @@ npm run dev
 ```
 timeguard/
 ├── src/
-│   ├── core.ts                  # Implementación completa (~5KB gzip, EN/ES) — sin efectos secundarios
+│   ├── core.ts                  # Implementación completa (~8.5KB gzip, EN/ES) — sin efectos secundarios
 │   ├── index.ts                 # Único entry point: re-exporta core, asume `globalThis.Temporal` nativo
 │   ├── adapters/
 │   │   └── temporal.adapter.ts  # Wrapper del API Temporal (nunca importa un polyfill)
